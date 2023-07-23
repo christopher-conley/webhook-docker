@@ -109,12 +109,12 @@ jobs:
         image: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
         ports:
           - 5572:9000
-        options: --name ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}-temp
+        options: --name ${{ needs.build-test-images.outputs.UBUNTUNAME }}-temp
 
 
   cleanup:
     if: ${{ !cancelled() }}
-    name: Delete artifcats
+    name: Delete artifacts
     runs-on: ubuntu-latest
     needs: [build-test-images, run-test-images]
 
@@ -125,6 +125,6 @@ jobs:
         uses: actions/delete-package-versions@v4
         with:
           package-type: container
-          package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          package-name: ${{ github.repository.name }}/${{ needs.build-test-images.outputs.UBUNTUNAME }}
           min-versions-to-keep: 0
           delete-only-untagged-versions: true
