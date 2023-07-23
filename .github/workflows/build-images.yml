@@ -13,9 +13,9 @@ jobs:
       - id: set_build_image_tags
         name: Set build image tags
         run: |
-          echo "REGISTRYPATH=ghcr.io/${{ github.repository }}" >> $GITHUB_OUPUT
-          echo "UBUNTUNAME=ubuntu_webhook_test_image" >> $GITHUB_OUPUT
-          echo "UBUNTUTAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUPUT"
+          echo "REGISTRYPATH=$(echo ghcr.io/${{ github.repository }})" >> $GITHUB_OUPUT
+          echo "UBUNTUNAME=$(echo ubuntu_webhook_test_image)" >> $GITHUB_OUPUT
+          echo "UBUNTUTAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUPUT
 
       - id: set_full_image_names
         name: Set full image names
