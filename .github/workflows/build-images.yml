@@ -15,14 +15,13 @@ jobs:
         run: |
           echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUNAME=$(echo ubuntu_webhook_test_image)" >> $GITHUB_OUTPUT
-          echo "UBUNTUTAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
           echo "UBUNTUARTIFACTPATH=$(echo "/tmp/ubuntu_webhook_test_image.tar")" >> $GITHUB_OUTPUT
 
       - id: set_full_image_names
         name: Set full image names
         run: |
-          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{steps.set_build_image_tags.outputs.UBUNTUTAG}}")" >> $GITHUB_OUTPUT
-          echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{steps.set_build_image_tags.outputs.UBUNTUTAG}}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
 
       - id: checkout_repo
         name: Checkout repo
@@ -60,7 +59,6 @@ jobs:
     outputs:
       UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
       UBUNTUSHORTIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
-      UBUNTUTAG: ${{ steps.set_build_image_tags.outputs.UBUNTUTAG }}
       UBUNTUARTIFACTPATH: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
       PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
@@ -72,7 +70,6 @@ jobs:
     env:
       UBUNTUIMAGE: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
       UBUNTUSHORTIMAGE: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
-      UBUNTUTAG: ${{ needs.build-test-images.outputs.UBUNTUTAG }}
       UBUNTUARTIFACTPATH: ${{ needs.build-test-images.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
     steps:
@@ -109,10 +106,10 @@ jobs:
 
     services:
       ubuntu_test_image:
-        image: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
+        image: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
         ports:
           - 5572:9000
-        options: --name ${{ needs.build-test-images.outputs.UBUNTUTAG }}
+        options: --name ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}-temp
 
 
   cleanup:
@@ -129,3 +126,5 @@ jobs:
         with:
           package-type: container
           package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: true
