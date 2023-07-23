@@ -3,17 +3,25 @@ run-name: build-webhook-images
 on:
   push:
     branches:
-      - "main"
+      - "github_actions_test"
 jobs:
   build-test-images:
     name: Build test images
     runs-on: ubuntu-latest
 
     steps:
+      - id: set_build_image_tags
+        name: Set build image tags
+        run: |
+          echo "REGISTRYPATH=ghcr.io/${{ github.repository }}" >> $GITHUB_OUPUT
+          echo "UBUNTUNAME=ubuntu_webhook_test_image" >> $GITHUB_OUPUT
+          echo "UBUNTUTAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUPUT"
 
-      - id: set_build_image_tag
-        name: Set build image tag
-        run: echo "BUILDIMAGE=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUPUT
+      - id: set_full_image_names
+        name: Set full image names
+        run: |
+          echo "UBUNTUIMAGE=$(echo ${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{steps.set_build_image_tags.outputs.UBUNTUTAG}})" >> $GITHUB_OUPUT
+          echo "UBUNTUSHORTIMAGE=$(echo ${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{steps.set_build_image_tags.outputs.UBUNTUTAG}})" >> $GITHUB_OUPUT
 
       - id: checkout_repo
         name: Checkout repo
@@ -27,11 +35,75 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - id: setup_buildx
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - id: build_test_image_ubuntu
         name: Build Ubuntu test image
         uses: docker/build-push-action@v4.1.1
         with:
           context: ${{ github.workspace }}/Dockerfiles
-          push: false
+          push: true
           file: Dockerfile.ubuntu
-          tags: ${{ steps.set_build_image_tag.outputs.BUILDIMAGE }}
+          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
+      #     outputs: type=docker,dest=/tmp/ubuntu_webhook_test_image.tar
+
+      # - id: upload_ubuntu_test_image
+      #   name: Upload Ubuntu test image
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: ubuntu_test_image
+      #     path: /tmp/ubuntu_webhook_test_image.tar
+
+    outputs:
+      UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
+      UBUNTUSHORTIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
+      UBUNTUTAG: ${{ steps.set_build_image_tags.outputs.UBUNTUTAG }}
+
+  run-test-images:
+    name: Run test images
+    runs-on: ubuntu-latest
+    needs: build-test-images
+    env:
+      UBUNTUIMAGE: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
+      UBUNTUSHORTIMAGE: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
+      UBUNTUTAG: ${{ needs.build-test-images.outputs.UBUNTUTAG }}
+
+    services:
+      ubuntu_test_image:
+        image: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
+        ports:
+          - 5572:9000
+        options: --name ${{ needs.build-test-images.outputs.UBUNTUTAG }}
+    steps:
+
+
+      - id: check_if_listening
+        name: Check if the container is listening
+        run: |
+          curl -L http://localhost:5572
+          curl -L http://localhost:5572/hooks/webhook
+      
+      # - id: ghcr_login
+      #   name: Login to GHCR
+      #   uses: docker/login-action@v1
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
+
+      # - id: setup_buildx
+      #   name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v2
+
+      # - id: download_test_images
+      #   name: Download Ubuntu test image
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: ubuntu_test_image
+      #     path: /tmp/ubuntu_webhook_test_image.tar
+
+      # - id: import_ubuntu_test_image
+      #   name: Import Ubuntu test image
+      #   run: docker load -i /tmp/ubuntu_webhook_test_image.tar
