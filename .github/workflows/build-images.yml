@@ -46,15 +46,15 @@ jobs:
           context: ${{ github.workspace }}/Dockerfiles
           push: true
           file: Dockerfiles/Dockerfile.ubuntu
-          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
-      #     outputs: type=docker,dest=/tmp/ubuntu_webhook_test_image.tar
+          tags: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
+          outputs: type=docker,dest=/tmp/ubuntu_webhook_test_image.tar
 
-      # - id: upload_ubuntu_test_image
-      #   name: Upload Ubuntu test image
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: ubuntu_test_image
-      #     path: /tmp/ubuntu_webhook_test_image.tar
+      - id: upload_ubuntu_test_image
+        name: Upload Ubuntu test image
+        uses: actions/upload-artifact@v3
+        with:
+          name: ubuntu_test_image
+          path: /tmp/ubuntu_webhook_test_image.tar
 
     outputs:
       UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
@@ -69,13 +69,6 @@ jobs:
       UBUNTUIMAGE: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
       UBUNTUSHORTIMAGE: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
       UBUNTUTAG: ${{ needs.build-test-images.outputs.UBUNTUTAG }}
-
-    services:
-      ubuntu_test_image:
-        image: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
-        ports:
-          - 5572:9000
-        options: --name ${{ needs.build-test-images.outputs.UBUNTUTAG }}
     steps:
 
 
@@ -85,25 +78,32 @@ jobs:
           curl -L http://localhost:5572
           curl -L http://localhost:5572/hooks/webhook
       
-      # - id: ghcr_login
-      #   name: Login to GHCR
-      #   uses: docker/login-action@v2
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
+      - id: ghcr_login
+        name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - id: setup_buildx
-      #   name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v2
+      - id: setup_buildx
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      # - id: download_test_images
-      #   name: Download Ubuntu test image
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: ubuntu_test_image
-      #     path: /tmp/ubuntu_webhook_test_image.tar
+      - id: download_test_images
+        name: Download Ubuntu test image
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu_test_image
+          path: /tmp/ubuntu_webhook_test_image.tar
 
-      # - id: import_ubuntu_test_image
-      #   name: Import Ubuntu test image
-      #   run: docker load -i /tmp/ubuntu_webhook_test_image.tar
+      - id: import_ubuntu_test_image
+        name: Import Ubuntu test image
+        run: docker load -i /tmp/ubuntu_webhook_test_image.tar
+
+    services:
+      ubuntu_test_image:
+        image: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
+        ports:
+          - 5572:9000
+        options: --name ${{ needs.build-test-images.outputs.UBUNTUTAG }}
