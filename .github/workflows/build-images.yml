@@ -62,6 +62,8 @@ jobs:
       UBUNTUARTIFACTPATH: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
       PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
+      FULLREPONAME: ${{ github.repository }}
+      SHORTREPONAME: ${{ github.repository.name }}
 
   run-test-images:
     name: Run test images
@@ -125,6 +127,6 @@ jobs:
         uses: actions/delete-package-versions@v4
         with:
           package-type: container
-          package-name: ${{ github.repository.name }}/${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          package-name: ${{ needs.build-test-images.outputs.SHORTREPONAME }}/${{ needs.build-test-images.outputs.UBUNTUNAME }}
           min-versions-to-keep: 0
           delete-only-untagged-versions: true
