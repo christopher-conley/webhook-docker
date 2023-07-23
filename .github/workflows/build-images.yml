@@ -45,17 +45,17 @@ jobs:
         uses: docker/build-push-action@v4.1.1
         with:
           context: ${{ github.workspace }}/Dockerfiles
-          push: false
+          push: true
           file: Dockerfiles/Dockerfile.ubuntu
-          tags: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
-          outputs: type=docker,dest=${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
+          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
+      #     outputs: type=docker,dest=${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
 
-      - id: upload_ubuntu_test_image
-        name: Upload Ubuntu test image
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
-          path: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
+      # - id: upload_ubuntu_test_image
+      #   name: Upload Ubuntu test image
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
+      #     path: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
 
     outputs:
       UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
@@ -63,6 +63,7 @@ jobs:
       UBUNTUTAG: ${{ steps.set_build_image_tags.outputs.UBUNTUTAG }}
       UBUNTUARTIFACTPATH: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
+      PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
 
   run-test-images:
     name: Run test images
@@ -95,16 +96,16 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - id: download_test_images
-        name: Download Ubuntu test image
-        uses: actions/download-artifact@v3
-        with:
-          name: ubuntu_test_image
-          path: ${{ needs.build-test-images.outputs.UBUNTUARTIFACTPATH }}
+      # - id: download_test_images
+      #   name: Download Ubuntu test image
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: ubuntu_test_image
+      #     path: ${{ needs.build-test-images.outputs.UBUNTUARTIFACTPATH }}
 
-      - id: import_ubuntu_test_image
-        name: Import Ubuntu test image
-        run: docker load -i $UBUNTUARTIFACTPATH
+      # - id: import_ubuntu_test_image
+      #   name: Import Ubuntu test image
+      #   run: docker load -i $UBUNTUARTIFACTPATH
 
     services:
       ubuntu_test_image:
@@ -118,11 +119,13 @@ jobs:
     if: ${{ !cancelled() }}
     name: Delete artifcats
     runs-on: ubuntu-latest
-    needs: [run-test-images]
+    needs: [build-test-images, run-test-images]
 
     steps:
       - id: cleanup_artifacts
+        if: ${{ needs.build-test-images.outputs.PUSHSUCCESS == 'success' }}
         name: Delete Ubuntu test image
-        uses: geekyeggo/delete-artifact@v2
+        uses: actions/delete-package-versions@v4
         with:
-            name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          package-type: container
+          package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
