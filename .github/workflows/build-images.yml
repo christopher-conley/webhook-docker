@@ -118,6 +118,6 @@ jobs:
         uses: actions/delete-package-versions@v4
         with:
           package-type: container
-          package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          package-name: ${{ needs.build-test-images.outputs.PACKAGENAME }}
           min-versions-to-keep: 0
           delete-only-untagged-versions: false
