@@ -98,7 +98,7 @@ jobs:
           # Make sure the container has had enough time to wake up and have coffee
           sleep 5
           CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://localhost:5572/hooks/webhook")
-          if [ $CODE -ne 404 ]; then
+          if [ $CODE -ne 200 ]; then
             echo "TESTRESULT=$(echo "failed")" >> $GITHUB_OUTPUT
           else
             echo "TESTRESULT=$(echo "listening")" >> $GITHUB_OUTPUT
