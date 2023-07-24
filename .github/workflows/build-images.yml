@@ -109,7 +109,16 @@ jobs:
             echo "TESTRESULT=$(echo "listening")" >> $GITHUB_OUTPUT
           fi
 
-      - id: fail_if_not_listening
+      - id: remove_test_release_tag
+        if: ${{ steps.check_if_listening.outputs.TESTRESULT == 'listening' }}
+        name: Remove testing tag if successful
+        uses: chipkent/action-cleanup-package@v1.0.1
+        with:
+          package-name: "${{ needs.build-test-images.outputs.SHORTREPONAME }}%2F${{ needs.build-test-images.outputs.UBUNTUNAME }}"
+          tag: ${{ needs.build-test-images.outputs.TAG }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: remove_package_release_tag
         if: ${{ steps.check_if_listening.outputs.TESTRESULT != 'listening' }}
         name: Remove version release tag if failed
         # uses: actions/github-script@v6
