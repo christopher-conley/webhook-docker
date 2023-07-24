@@ -64,6 +64,7 @@ jobs:
       PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
       FULLREPONAME: ${{ github.repository }}
       SHORTREPONAME: ${{ github.repository.name }}
+      PACKAGENAME: "${{ github.repository.name }}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
 
   run-test-images:
     name: Run test images
@@ -123,7 +124,7 @@ jobs:
     steps:
       - name: Debug
         run: |
-          echo "Package name is: ${{ needs.build-test-images.outputs.UBUNTUNAME }}"
+          echo "Package name is: ${{ needs.build-test-images.outputs.PACKAGENAME }}"
 
       - id: cleanup_artifacts
         if: ${{ needs.build-test-images.outputs.PUSHSUCCESS == 'success' }}
