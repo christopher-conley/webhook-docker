@@ -63,8 +63,8 @@ jobs:
       UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
       PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
       FULLREPONAME: ${{ github.repository }}
-      SHORTREPONAME: ${{ github.repository.name }}
-      PACKAGENAME: "${{ github.repository.name }}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
+      SHORTREPONAME: ${{ github.event.repository.name }}
+      PACKAGENAME: "${{ github.event.repository.name}}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
 
   run-test-images:
     name: Run test images
