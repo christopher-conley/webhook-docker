@@ -113,6 +113,10 @@ jobs:
     name: Delete artifacts
     runs-on: ubuntu-latest
     needs: [build-test-images, run-test-images]
+    env:
+      UBUNTUNAME: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+      REPOOWNER: ${{ needs.build-test-images.outputs.REPOOWNER }}
+      SHORTREPONAME: ${{ needs.build-test-images.outputs.SHORTREPONAME }}
 
     steps:
       - name: Debug
