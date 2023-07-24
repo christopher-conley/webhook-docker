@@ -35,9 +35,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: setup_buildx
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      # Disabling due to:
+      # https://github.com/docker/setup-buildx-action/issues/113
+      # - id: setup_buildx
+      #   name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v2
 
       - id: build_test_image_ubuntu
         name: Build Ubuntu test image
