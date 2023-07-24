@@ -90,7 +90,7 @@ jobs:
 
     services:
       ubuntu_test_image:
-        image: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
+        image: "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.TAG }}"
         ports:
           - 5572:9000
         options: --name ${{ needs.build-test-images.outputs.UBUNTUNAME }}-temp
