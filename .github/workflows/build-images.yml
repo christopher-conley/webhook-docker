@@ -124,7 +124,6 @@ jobs:
 
         uses: chipkent/action-cleanup-package@v1.0.1
         with:
-          package-name: ${{ needs.build-test-images.outputs.PACKAGENAME }}
+          package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
           tag: latest
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          
