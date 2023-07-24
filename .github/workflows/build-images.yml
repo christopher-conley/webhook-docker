@@ -121,12 +121,16 @@ jobs:
     needs: [build-test-images, run-test-images]
 
     steps:
+      - name: Debug
+        run: |
+          echo "Package name is: ${{ needs.build-test-images.outputs.UBUNTUNAME }}"
+
       - id: cleanup_artifacts
         if: ${{ needs.build-test-images.outputs.PUSHSUCCESS == 'success' }}
         name: Delete Ubuntu test image
         uses: actions/delete-package-versions@v4
         with:
           package-type: container
-          package-name: ${{ needs.build-test-images.outputs.SHORTREPONAME }}/${{ needs.build-test-images.outputs.UBUNTUNAME }}
+          package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
           min-versions-to-keep: 0
-          delete-only-untagged-versions: true
+          delete-only-untagged-versions: false
