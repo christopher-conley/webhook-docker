@@ -10,23 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - id: checkout_repo
+        name: Checkout repo
+        uses: actions/checkout@v3
+
       - id: set_build_image_tags
         name: Set build image tags
         run: |
           echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
-          echo "UBUNTUNAME=$(echo ubuntu_webhook_test_image)" >> $GITHUB_OUTPUT
+          echo "UBUNTUNAME=$(echo webhook-ubuntu)" >> $GITHUB_OUTPUT
           echo "TAG=$(echo "actionstest")" >> $GITHUB_OUTPUT
           echo "UBUNTUARTIFACTPATH=$(echo "/tmp/ubuntu_webhook_test_image.tar")" >> $GITHUB_OUTPUT
+          echo "PACKAGEVERSION=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
 
       - id: set_full_image_names
         name: Set full image names
         run: |
-          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{ steps.set_build_image_tags.outputs.TAG }}")" >> $GITHUB_OUTPUT
+          #echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{ steps.set_build_image_tags.outputs.TAG }}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
           echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
-
-      - id: checkout_repo
-        name: Checkout repo
-        uses: actions/checkout@v3
 
       - id: ghcr_login
         name: Login to GHCR
@@ -49,7 +51,9 @@ jobs:
           context: ${{ github.workspace }}/Dockerfiles
           push: true
           file: Dockerfiles/Dockerfile.ubuntu
-          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
+          tags: |
+            ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.TAG }}
+            ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.PACKAGEVERSION }}
       #     outputs: type=docker,dest=${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
 
       # - id: upload_ubuntu_test_image
@@ -70,6 +74,7 @@ jobs:
       SHORTREPONAME: ${{ github.event.repository.name }}
       PACKAGENAME: "${{ github.event.repository.name}}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
       TAG: ${{ steps.set_build_image_tags.outputs.TAG }}
+      PACKAGEVERSION: ${{ steps.set_build_image_tags.outputs.PACKAGEVERSION }}
 
   run-test-images:
     name: Run test images
@@ -106,10 +111,16 @@ jobs:
 
       - id: fail_if_not_listening
         if: ${{ steps.check_if_listening.outputs.TESTRESULT != 'listening' }}
-        uses: actions/github-script@v6
+        name: Remove version release tag if failed
+        # uses: actions/github-script@v6
+        # with:
+        #   script: |
+        #     core.setFailed('Webhook container ${{ needs.build-test-images.outputs.UBUNTUNAME }} is not listening or did not return 200 OK')
+        uses: chipkent/action-cleanup-package@v1.0.1
         with:
-          script: |
-            core.setFailed('Webhook container ${{ needs.build-test-images.outputs.UBUNTUNAME }} is not listening or did not return 200 OK')
+          package-name: "${{ needs.build-test-images.outputs.SHORTREPONAME }}%2F${{ needs.build-test-images.outputs.UBUNTUNAME }}"
+          tag: ${{ needs.build-test-images.outputs.PACKAGEVERSION }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - id: download_test_images
       #   name: Download Ubuntu test image
