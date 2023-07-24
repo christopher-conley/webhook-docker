@@ -19,9 +19,9 @@ jobs:
         run: |
           echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUNAME=$(echo webhook-ubuntu)" >> $GITHUB_OUTPUT
-          echo "TAG=$(echo "actionstest")" >> $GITHUB_OUTPUT
           echo "UBUNTUARTIFACTPATH=$(echo "/tmp/ubuntu_webhook_test_image.tar")" >> $GITHUB_OUTPUT
           echo "PACKAGEVERSION=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
+          echo "TAG=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
 
       - id: set_full_image_names
         name: Set full image names
@@ -51,9 +51,7 @@ jobs:
           context: ${{ github.workspace }}/Dockerfiles
           push: true
           file: Dockerfiles/Dockerfile.ubuntu
-          tags: |
-            ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.TAG }}
-            ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.PACKAGEVERSION }}
+          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.TAG }}
       #     outputs: type=docker,dest=${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
 
       # - id: upload_ubuntu_test_image
@@ -108,28 +106,6 @@ jobs:
           else
             echo "TESTRESULT=$(echo "listening")" >> $GITHUB_OUTPUT
           fi
-
-      - id: remove_test_release_tag
-        if: ${{ steps.check_if_listening.outputs.TESTRESULT == 'listening' }}
-        name: Remove testing tag if successful
-        uses: chipkent/action-cleanup-package@v1.0.1
-        with:
-          package-name: "${{ needs.build-test-images.outputs.SHORTREPONAME }}%2F${{ needs.build-test-images.outputs.UBUNTUNAME }}"
-          tag: ${{ needs.build-test-images.outputs.TAG }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: remove_package_release_tag
-        if: ${{ steps.check_if_listening.outputs.TESTRESULT != 'listening' }}
-        name: Remove version release tag if failed
-        # uses: actions/github-script@v6
-        # with:
-        #   script: |
-        #     core.setFailed('Webhook container ${{ needs.build-test-images.outputs.UBUNTUNAME }} is not listening or did not return 200 OK')
-        uses: chipkent/action-cleanup-package@v1.0.1
-        with:
-          package-name: "${{ needs.build-test-images.outputs.SHORTREPONAME }}%2F${{ needs.build-test-images.outputs.UBUNTUNAME }}"
-          tag: ${{ needs.build-test-images.outputs.PACKAGEVERSION }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # - id: download_test_images
       #   name: Download Ubuntu test image
