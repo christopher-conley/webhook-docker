@@ -15,12 +15,13 @@ jobs:
         run: |
           echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUNAME=$(echo ubuntu_webhook_test_image)" >> $GITHUB_OUTPUT
+          echo "TAG=$(echo "actionstest")" >> $GITHUB_OUTPUT
           echo "UBUNTUARTIFACTPATH=$(echo "/tmp/ubuntu_webhook_test_image.tar")" >> $GITHUB_OUTPUT
 
       - id: set_full_image_names
         name: Set full image names
         run: |
-          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{ steps.set_build_image_tags.outputs.TAG }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
 
       - id: checkout_repo
@@ -67,6 +68,7 @@ jobs:
       FULLREPONAME: ${{ github.repository }}
       SHORTREPONAME: ${{ github.event.repository.name }}
       PACKAGENAME: "${{ github.event.repository.name}}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
+      TAG: ${{ steps.set_build_image_tags.outputs.TAG }}
 
   run-test-images:
     name: Run test images
@@ -124,8 +126,9 @@ jobs:
         #   min-versions-to-keep: 0
         #   delete-only-untagged-versions: false
 
+        # webhook-docker/ubuntu_webhook_test_image
         uses: chipkent/action-cleanup-package@v1.0.1
         with:
           package-name: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
-          tag: latest
+          tag: ${{ needs.build-test-images.outputs.TAG }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
