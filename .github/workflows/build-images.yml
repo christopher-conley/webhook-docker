@@ -19,14 +19,12 @@ jobs:
         run: |
           echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUNAME=$(echo webhook-ubuntu)" >> $GITHUB_OUTPUT
-          echo "UBUNTUARTIFACTPATH=$(echo "/tmp/ubuntu_webhook_test_image.tar")" >> $GITHUB_OUTPUT
           echo "PACKAGEVERSION=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
-          echo "TAG=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
+          echo "TAG=$(echo "test")" >> $GITHUB_OUTPUT
 
       - id: set_full_image_names
         name: Set full image names
         run: |
-          #echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}:${{ steps.set_build_image_tags.outputs.TAG }}")" >> $GITHUB_OUTPUT
           echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
           echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
 
@@ -52,27 +50,18 @@ jobs:
           push: true
           file: Dockerfiles/Dockerfile.ubuntu
           tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.TAG }}
-      #     outputs: type=docker,dest=${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
-
-      # - id: upload_ubuntu_test_image
-      #   name: Upload Ubuntu test image
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
-      #     path: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
 
     outputs:
       UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
       UBUNTUSHORTIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
-      UBUNTUARTIFACTPATH: ${{ steps.set_build_image_tags.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
       PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
       REPOOWNER: ${{ github.repository_owner }}
       FULLREPONAME: ${{ github.repository }}
       SHORTREPONAME: ${{ github.event.repository.name }}
       PACKAGENAME: "${{ github.event.repository.name}}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
-      TAG: ${{ steps.set_build_image_tags.outputs.TAG }}
       PACKAGEVERSION: ${{ steps.set_build_image_tags.outputs.PACKAGEVERSION }}
+      TAG: ${{ steps.set_build_image_tags.outputs.TAG }}
 
   run-test-images:
     name: Run test images
@@ -81,7 +70,6 @@ jobs:
     env:
       UBUNTUIMAGE: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
       UBUNTUSHORTIMAGE: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
-      UBUNTUARTIFACTPATH: ${{ needs.build-test-images.outputs.UBUNTUARTIFACTPATH }}
       UBUNTUNAME: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
       REPOOWNER: ${{ needs.build-test-images.outputs.REPOOWNER }}
       SHORTREPONAME: ${{ needs.build-test-images.outputs.SHORTREPONAME }}
@@ -106,17 +94,38 @@ jobs:
           else
             echo "TESTRESULT=$(echo "listening")" >> $GITHUB_OUTPUT
           fi
+    outputs:
+      TESTRESULT: ${{ steps.check_if_listening.outputs.TESTRESULT }}
 
-      # - id: download_test_images
-      #   name: Download Ubuntu test image
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: ubuntu_test_image
-      #     path: ${{ needs.build-test-images.outputs.UBUNTUARTIFACTPATH }}
+  build-prod-images:
+    name: Build prod images
+    runs-on: ubuntu-latest
+    needs: [run-test-images, build-test-images]
+    if: ${{ needs.run-test-images.outputs.TESTRESULT == 'listening' }}
 
-      # - id: import_ubuntu_test_image
-      #   name: Import Ubuntu test image
-      #   run: docker load -i $UBUNTUARTIFACTPATH
+    steps:
+      - id: checkout_repo
+        name: Checkout repo
+        uses: actions/checkout@v3
+
+      - id: ghcr_login
+        name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build_prod_image_ubuntu
+        name: Build Ubuntu test image
+        uses: docker/build-push-action@v4.1.1
+        with:
+          context: ${{ github.workspace }}/Dockerfiles
+          push: true
+          file: Dockerfiles/Dockerfile.ubuntu
+          tags: |
+            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
+            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
 
   cleanup:
     if: ${{ !cancelled() }}
