@@ -52,7 +52,6 @@ COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
 COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
 COPY        scripts/entrypoint.sh /entrypoint.sh
 WORKDIR     ${WEBHOOK_ETC_VOLUME}
-VOLUME      ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_LOG_VOLUME}
 EXPOSE      9000
 
