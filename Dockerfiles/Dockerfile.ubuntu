@@ -49,7 +49,7 @@ RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} && useradd -m -N -g ${WE
     chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
 
 COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
-#COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
+COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
 COPY        scripts/entrypoint.sh /entrypoint.sh
 WORKDIR     ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_LOG_VOLUME}
