@@ -3,7 +3,7 @@ run-name: build-webhook-images
 on:
   push:
     branches:
-      - "github_actions_test"
+      - "main"
 jobs:
   build-test-images:
     name: Build test images
