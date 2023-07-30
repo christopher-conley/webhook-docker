@@ -28,6 +28,8 @@ ARG         WEBHOOK_LOG_VOLUME="/var/log/webhook"
 ENV         WEBHOOK_LOG_VOLUME=${WEBHOOK_LOG_VOLUME}
 ARG         WEBHOOK_LOGFILE="${WEBHOOK_LOG_VOLUME}/webhook.log"
 ENV         WEBHOOK_LOGFILE=${WEBHOOK_LOGFILE}
+ARG         WEBHOOK_SCRIPTS_VOLUME="${WEBHOOK_HOME}/scripts"
+ENV         WEBHOOK_SCRIPTS_VOLUME=${WEBHOOK_SCRIPTS_VOLUME}
 ARG         WEBHOOK_USER="webhook"
 ENV         WEBHOOK_USER=${WEBHOOK_USER}
 ARG         WEBHOOK_GROUP=${WEBHOOK_USER}
@@ -46,8 +48,9 @@ ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
 RUN         apt-get update -y && apt-get upgrade && apt-get install jq curl iputils-ping apt-transport-https ca-certificates \
     curl software-properties-common lsb-release gnupg ssh iproute2 bind9-host -y
 
-RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} && useradd -m -N -g ${WEBHOOK_GID} -u ${WEBHOOK_UID} -d ${WEBHOOK_HOME} ${WEBHOOK_USER} && mkdir -p ${WEBHOOK_LOG_VOLUME} && \
-    chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
+RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} && useradd -m -N -g ${WEBHOOK_GID} -u ${WEBHOOK_UID} -d ${WEBHOOK_HOME} ${WEBHOOK_USER} \
+    && mkdir -p ${WEBHOOK_LOG_VOLUME} && mkdir -p ${WEBHOOK_SCRIPTS_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} \
+    && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
 
 COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
 COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
@@ -55,6 +58,7 @@ COPY        scripts/entrypoint.sh /entrypoint.sh
 WORKDIR     ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_LOG_VOLUME}
+VOLUME      ${WEBHOOK_SCRIPTS_VOLUME}
 EXPOSE      9000
 
 ENTRYPOINT ["/entrypoint.sh"]
