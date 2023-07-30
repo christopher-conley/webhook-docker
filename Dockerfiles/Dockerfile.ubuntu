@@ -14,6 +14,7 @@ RUN sed -i 's/linux //g' droppriv_nope.go
 RUN sed -i 's/\!windows,\!linux/linux \!windows/g' droppriv_unix.go
 RUN sed -i 's/v0\.0\.0-20191209160850-c0dbc17a3553/v0\.7\.0/g' vendor/modules.txt
 RUN sed -i 's/v0\.0\.0-20191228213918-04cbcbbfeed8/v0\.7\.0/g' vendor/modules.txt
+RUN sed -i "s/Hook rules were not satisfied/These aren't the droids you're looking for/g" webhook.go webhook_test.go
 
 RUN         go get -d -v
 RUN         CGO_ENABLED=0 go build -ldflags="-s -w" -o ${WEBHOOK_BIN}

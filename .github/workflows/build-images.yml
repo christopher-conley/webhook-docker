@@ -1,0 +1,164 @@
+name: Build webhook images
+run-name: build-webhook-images
+on:
+  push:
+    branches:
+      - "main"
+jobs:
+  build-test-images:
+    name: Build test images
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: checkout_repo
+        name: Checkout repo
+        uses: actions/checkout@v3
+
+      - id: set_build_image_tags
+        name: Set build image tags
+        run: |
+          echo "REGISTRYPATH=$(echo "ghcr.io/${{ github.repository }}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUNAME=$(echo webhook-ubuntu)" >> $GITHUB_OUTPUT
+          echo "PACKAGEVERSION=$(cat ${{ github.workspace }}/VERSION)" >> $GITHUB_OUTPUT
+          echo "TAG=$(echo "test")" >> $GITHUB_OUTPUT
+
+      - id: set_full_image_names
+        name: Set full image names
+        run: |
+          echo "UBUNTUIMAGE=$(echo "${{steps.set_build_image_tags.outputs.REGISTRYPATH}}/${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
+          echo "UBUNTUSHORTIMAGE=$(echo "${{steps.set_build_image_tags.outputs.UBUNTUNAME}}")" >> $GITHUB_OUTPUT
+
+      - id: ghcr_login
+        name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Disabling due to:
+      # https://github.com/docker/setup-buildx-action/issues/113
+      # - id: setup_buildx
+      #   name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v2
+
+      - id: build_test_image_ubuntu
+        name: Build Ubuntu test image
+        uses: docker/build-push-action@v4.1.1
+        with:
+          context: ${{ github.workspace }}/Dockerfiles
+          push: true
+          file: Dockerfiles/Dockerfile.ubuntu
+          tags: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}:${{ steps.set_build_image_tags.outputs.TAG }}
+
+    outputs:
+      UBUNTUIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUIMAGE }}
+      UBUNTUSHORTIMAGE: ${{ steps.set_full_image_names.outputs.UBUNTUSHORTIMAGE }}
+      UBUNTUNAME: ${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}
+      PUSHSUCCESS: ${{ steps.build_test_image_ubuntu.outcome }}
+      REPOOWNER: ${{ github.repository_owner }}
+      FULLREPONAME: ${{ github.repository }}
+      SHORTREPONAME: ${{ github.event.repository.name }}
+      PACKAGENAME: "${{ github.event.repository.name}}/${{ steps.set_build_image_tags.outputs.UBUNTUNAME }}"
+      PACKAGEVERSION: ${{ steps.set_build_image_tags.outputs.PACKAGEVERSION }}
+      TAG: ${{ steps.set_build_image_tags.outputs.TAG }}
+
+  run-test-images:
+    name: Run test images
+    runs-on: ubuntu-latest
+    needs: build-test-images
+    env:
+      UBUNTUIMAGE: ${{ needs.build-test-images.outputs.UBUNTUIMAGE }}
+      UBUNTUSHORTIMAGE: ${{ needs.build-test-images.outputs.UBUNTUSHORTIMAGE }}
+      UBUNTUNAME: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+      REPOOWNER: ${{ needs.build-test-images.outputs.REPOOWNER }}
+      SHORTREPONAME: ${{ needs.build-test-images.outputs.SHORTREPONAME }}
+
+    services:
+      ubuntu_test_image:
+        image: "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.TAG }}"
+        ports:
+          - 5572:9000
+        options: --name ${{ needs.build-test-images.outputs.UBUNTUNAME }}-temp
+
+    steps:
+
+      - id: check_if_listening
+        name: Check if the container is listening
+        run: |
+          # Make sure the container has had enough time to wake up and have coffee
+          sleep 5
+          CODE=$(curl -L -s -o /dev/null -w "%{http_code}" "http://localhost:5572/hooks/webhook")
+          if [ $CODE -ne 200 ]; then
+            echo "TESTRESULT=$(echo "failed")" >> $GITHUB_OUTPUT
+          else
+            echo "TESTRESULT=$(echo "listening")" >> $GITHUB_OUTPUT
+          fi
+    outputs:
+      TESTRESULT: ${{ steps.check_if_listening.outputs.TESTRESULT }}
+
+  build-prod-images:
+    name: Build prod images
+    runs-on: ubuntu-latest
+    needs: [run-test-images, build-test-images]
+    if: ${{ needs.run-test-images.outputs.TESTRESULT == 'listening' }}
+
+    steps:
+      - id: checkout_repo
+        name: Checkout repo
+        uses: actions/checkout@v3
+
+      - id: ghcr_login
+        name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build_prod_image_ubuntu
+        name: Build Ubuntu test image
+        uses: docker/build-push-action@v4.1.1
+        with:
+          context: ${{ github.workspace }}/Dockerfiles
+          push: true
+          file: Dockerfiles/Dockerfile.ubuntu
+          tags: |
+            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
+            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
+
+  cleanup:
+    if: ${{ !cancelled() }}
+    name: Delete artifacts
+    runs-on: ubuntu-latest
+    needs: [build-test-images, run-test-images]
+    env:
+      UBUNTUNAME: ${{ needs.build-test-images.outputs.UBUNTUNAME }}
+      REPOOWNER: ${{ needs.build-test-images.outputs.REPOOWNER }}
+      SHORTREPONAME: ${{ needs.build-test-images.outputs.SHORTREPONAME }}
+
+    steps:
+      - name: Debug
+        run: |
+          echo "Package name is: ${{ needs.build-test-images.outputs.PACKAGENAME }}"
+
+      - id: cleanup_artifacts
+        if: ${{ needs.build-test-images.outputs.PUSHSUCCESS == 'success' }}
+        name: Delete Ubuntu test image
+        uses: actions/delete-package-versions@v4
+        with:
+          package-type: container
+          package-name: ${{ needs.build-test-images.outputs.PACKAGENAME }}
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: false
+
+      # - id: cleanup_artifacts
+      #   if: ${{ needs.build-test-images.outputs.PUSHSUCCESS == 'success' }}
+      #   name: Delete Ubuntu test image
+      #   run: |
+      #     curl -L \
+      #     -X DELETE \
+      #     -H "Accept: application/vnd.github+json" \
+      #     -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+      #     -H "X-GitHub-Api-Version: 2022-11-28" \
+      #     https://api.github.com/users/${REPOOWNER}/packages/container/${SHORTREPONAME}%2F${UBUNTUNAME}
