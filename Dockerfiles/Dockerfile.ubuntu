@@ -4,7 +4,7 @@ ARG         WEBHOOK_VERSION=2024.04.12.0405
 ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
-RUN         apk add --no-cache --verbose --no-interactive --update -t git build-deps curl libc-dev gcc libgcc
+RUN         apk add --no-cache --verbose --no-interactive --update -t build-deps curl libc-dev gcc libgcc git
 RUN         git clone --recursive https://github.com/christopher-conley/adnanh-webhook.git \
             && cd adnanh-webhook \
             && git checkout ${WEBHOOK_VERSION} \
@@ -40,7 +40,7 @@ ENV         WEBHOOK_HOOKSFILE=${WEBHOOK_HOOKSFILE}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
 
-RUN         apt-get update -y && apt-get upgrade && apt-get install jq curl iputils-ping apt-transport-https ca-certificates \
+RUN         apt-get update -y && apt-get upgrade -y && apt-get install jq curl iputils-ping apt-transport-https ca-certificates \
     curl software-properties-common lsb-release gnupg ssh iproute2 bind9-host -y
 
 RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} && useradd -m -N -g ${WEBHOOK_GID} -u ${WEBHOOK_UID} -d ${WEBHOOK_HOME} ${WEBHOOK_USER} \
