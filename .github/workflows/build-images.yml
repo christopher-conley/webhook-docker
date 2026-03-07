@@ -97,17 +97,13 @@ jobs:
     outputs:
       TESTRESULT: ${{ steps.check_if_listening.outputs.TESTRESULT }}
 
-  build-prod-images:
-    name: Build prod images
+  tag-prod-images:
+    name: Tag prod images
     runs-on: ubuntu-latest
     needs: [run-test-images, build-test-images]
     if: ${{ needs.run-test-images.outputs.TESTRESULT == 'listening' }}
 
     steps:
-      - id: checkout_repo
-        name: Checkout repo
-        uses: actions/checkout@v3
-
       - id: ghcr_login
         name: Login to GHCR
         uses: docker/login-action@v2
@@ -115,18 +111,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: build_prod_image_ubuntu
-        name: Build Ubuntu test image
-        uses: docker/build-push-action@v4.1.1
-        with:
-          context: ${{ github.workspace }}/Dockerfiles
-          push: true
-          file: Dockerfiles/Dockerfile.ubuntu
-          tags: |
-            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
-            "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
-
+      - id: tag_prod_image_ubuntu
+        name: Tag Ubuntu test image with version and latest
+        run: |
+          docker tag "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.TAG }}" "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
+          docker tag "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest" "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
+      - id: push_prod_image_ubuntu
+        name: Push prod image to GHCR
+        run: |
+          docker push "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
+          docker push "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
   cleanup:
     if: ${{ !cancelled() }}
     name: Delete artifacts
