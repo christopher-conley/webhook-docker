@@ -114,6 +114,7 @@ jobs:
       - id: tag_prod_image_ubuntu
         name: Tag Ubuntu test image with version and latest
         run: |
+          docker pull "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.TAG }}"
           docker tag "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.TAG }}" "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest"
           docker tag "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:latest" "${{ needs.build-test-images.outputs.UBUNTUIMAGE }}:${{ needs.build-test-images.outputs.PACKAGEVERSION }}"
       - id: push_prod_image_ubuntu
