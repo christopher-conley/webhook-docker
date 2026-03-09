@@ -1,0 +1,69 @@
+FROM        golang:alpine AS build
+WORKDIR     /tmp/go/src/webhook
+ARG         WEBHOOK_VERSION=2026.03.08.1954
+ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
+ARG         WEBHOOK_BIN="/usr/bin/webhook"
+ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
+RUN         apk add --no-cache --verbose --no-interactive --update -t build-deps curl libc-dev gcc libgcc git
+RUN         git clone --recursive https://github.com/christopher-conley/webhook-docker.git \
+            && cd webhook-docker \
+            && git checkout tags/${WEBHOOK_VERSION} \
+            && go mod tidy \
+            && go mod vendor \
+            && sed -i "s/Hook rules were not satisfied/These aren't the droids you're looking for/g" webhook.go webhook_test.go \
+            && go get -d -v \
+            && CGO_ENABLED=0 go build -ldflags="-s -w" -o ${WEBHOOK_BIN}
+
+FROM        debian:trixie-slim
+ARG         WEBHOOK_ETC_VOLUME="/etc/webhook"
+
+ENV         WEBHOOK_ETC_VOLUME=${WEBHOOK_ETC_VOLUME}
+ARG         WEBHOOK_HOME=${WEBHOOK_ETC_VOLUME}
+ENV         WEBHOOK_HOME=${WEBHOOK_ETC_VOLUME}
+ARG         WEBHOOK_LOG_VOLUME="/var/log/webhook"
+ENV         WEBHOOK_LOG_VOLUME=${WEBHOOK_LOG_VOLUME}
+ARG         WEBHOOK_LOGFILE="${WEBHOOK_LOG_VOLUME}/webhook.log"
+ENV         WEBHOOK_LOGFILE=${WEBHOOK_LOGFILE}
+ARG         WEBHOOK_SCRIPTS_VOLUME="${WEBHOOK_HOME}/scripts"
+ENV         WEBHOOK_SCRIPTS_VOLUME=${WEBHOOK_SCRIPTS_VOLUME}
+ARG         WEBHOOK_USER="webhook"
+ENV         WEBHOOK_USER=${WEBHOOK_USER}
+ARG         WEBHOOK_GROUP=${WEBHOOK_USER}
+ENV         WEBHOOK_GROUP=${WEBHOOK_USER}
+ARG         WEBHOOK_UID=1000
+ENV         WEBHOOK_UID=${WEBHOOK_UID}
+ARG         WEBHOOK_GID=${WEBHOOK_UID}
+ENV         WEBHOOK_GID=${WEBHOOK_UID}
+ARG         WEBHOOK_PORT=9000
+ENV         WEBHOOK_PORT=${WEBHOOK_PORT}
+ARG         WEBHOOK_HOOKSFILE="${WEBHOOK_ETC_VOLUME}/hooks.yml"
+ENV         WEBHOOK_HOOKSFILE=${WEBHOOK_HOOKSFILE}
+ARG         WEBHOOK_BIN="/usr/bin/webhook"
+ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
+
+RUN         apt-get update -y \
+         && apt-get upgrade -y \
+         && apt-get install \
+              jq \
+              curl \
+              iputils-ping \
+              apt-transport-https \
+              ca-certificates \
+              curl lsb-release gnupg ssh iproute2 bind9-host -y \
+         && rm -rf /var/lib/apt/lists/*
+
+RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} \
+         && useradd -m -N -g ${WEBHOOK_GID} -u ${WEBHOOK_UID} -d ${WEBHOOK_HOME} ${WEBHOOK_USER} \
+         && mkdir -p ${WEBHOOK_LOG_VOLUME} && mkdir -p ${WEBHOOK_SCRIPTS_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} \
+         && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
+
+COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
+COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
+COPY        scripts/entrypoint.sh /entrypoint.sh
+WORKDIR     ${WEBHOOK_ETC_VOLUME}
+VOLUME      ${WEBHOOK_ETC_VOLUME}
+VOLUME      ${WEBHOOK_LOG_VOLUME}
+VOLUME      ${WEBHOOK_SCRIPTS_VOLUME}
+EXPOSE      9000
+
+ENTRYPOINT ["/entrypoint.sh"]

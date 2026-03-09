@@ -1,21 +1,22 @@
 FROM        golang:alpine AS build
 WORKDIR     /tmp/go/src/webhook
-ARG         WEBHOOK_VERSION=2024.04.12.0405
+ARG         WEBHOOK_VERSION=2026.03.08.1954
 ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
 RUN         apk add --no-cache --verbose --no-interactive --update -t build-deps curl libc-dev gcc libgcc git
-RUN         git clone --recursive https://github.com/christopher-conley/adnanh-webhook.git \
-            && cd adnanh-webhook \
-            && git checkout ${WEBHOOK_VERSION} \
+RUN         git clone --recursive https://github.com/christopher-conley/webhook-docker.git \
+            && cd webhook-docker \
+            && git checkout tags/${WEBHOOK_VERSION} \
             && go mod tidy \
             && go mod vendor \
             && sed -i "s/Hook rules were not satisfied/These aren't the droids you're looking for/g" webhook.go webhook_test.go \
             && go get -d -v \
             && CGO_ENABLED=0 go build -ldflags="-s -w" -o ${WEBHOOK_BIN}
 
-FROM        ubuntu:22.04
+FROM        docker:latest
 ARG         WEBHOOK_ETC_VOLUME="/etc/webhook"
+
 ENV         WEBHOOK_ETC_VOLUME=${WEBHOOK_ETC_VOLUME}
 ARG         WEBHOOK_HOME=${WEBHOOK_ETC_VOLUME}
 ENV         WEBHOOK_HOME=${WEBHOOK_ETC_VOLUME}
@@ -31,21 +32,34 @@ ARG         WEBHOOK_GROUP=${WEBHOOK_USER}
 ENV         WEBHOOK_GROUP=${WEBHOOK_USER}
 ARG         WEBHOOK_UID=1000
 ENV         WEBHOOK_UID=${WEBHOOK_UID}
-ARG         WEBHOOK_GID=${WEBHOOK_UID}
-ENV         WEBHOOK_GID=${WEBHOOK_UID}
-ARG         WEBHOOK_PORT=9000
+ARG         WEBHOOK_GID=989
+ENV         WEBHOOK_GID=${WEBHOOK_GID}
+ARG         WEBHOOK_PORT=9001
 ENV         WEBHOOK_PORT=${WEBHOOK_PORT}
-ARG         WEBHOOK_HOOKSFILE="${WEBHOOK_ETC_VOLUME}/hooks.yaml.tmpl"
+ARG         WEBHOOK_HOOKSFILE="${WEBHOOK_ETC_VOLUME}/hooks.yml"
 ENV         WEBHOOK_HOOKSFILE=${WEBHOOK_HOOKSFILE}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
 
-RUN         apt-get update -y && apt-get upgrade -y && apt-get install jq curl iputils-ping apt-transport-https ca-certificates \
-    curl software-properties-common lsb-release gnupg ssh iproute2 bind9-host -y
+RUN         apk update \
+         && apk upgrade \
+         && apk add --no-cache --verbose --no-interactive --update -t \
+              jq \
+              curl \
+              iputils-ping \
+              ca-certificates \
+              lsb-release-minimal gnupg tinyssh iproute2 bind-tools \
+         && apk add --no-cache \
+               bash \
+               su-exec \
+         && apk cache clean \
+         && apk cache purge \
+         && rm -rf /var/cache/apk/*
 
-RUN         groupadd -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} && useradd -m -N -g ${WEBHOOK_GID} -u ${WEBHOOK_UID} -d ${WEBHOOK_HOME} ${WEBHOOK_USER} \
-    && mkdir -p ${WEBHOOK_LOG_VOLUME} && mkdir -p ${WEBHOOK_SCRIPTS_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} \
-    && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
+RUN         addgroup -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} \
+     && adduser -D -H -G ${WEBHOOK_GROUP} -u ${WEBHOOK_UID} -h ${WEBHOOK_HOME} -s "/bin/bash" ${WEBHOOK_USER} \
+     && mkdir -p ${WEBHOOK_LOG_VOLUME} && mkdir -p ${WEBHOOK_SCRIPTS_VOLUME} && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} \
+     && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME}
 
 COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
 COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
@@ -54,6 +68,7 @@ WORKDIR     ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_ETC_VOLUME}
 VOLUME      ${WEBHOOK_LOG_VOLUME}
 VOLUME      ${WEBHOOK_SCRIPTS_VOLUME}
-EXPOSE      9000
+EXPOSE      ${WEBHOOK_PORT}/tcp
 
-ENTRYPOINT ["/entrypoint.sh"]
+USER        ${WEBHOOK_USER}
+ENTRYPOINT  ["/entrypoint.sh"]
