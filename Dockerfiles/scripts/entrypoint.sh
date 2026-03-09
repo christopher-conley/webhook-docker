@@ -1,6 +1,6 @@
 #!/bin/sh
 
-"${WEBHOOK_BIN}" "-template" "-hooks" "${WEBHOOK_HOOKSFILE}" "-hotreload" "-logfile" "${WEBHOOK_LOGFILE}" "-setgid" "${WEBHOOK_GID}" "-setuid" "${WEBHOOK_UID}" "-x-request-id" &
+"${WEBHOOK_BIN}" "-template" "-hooks" "${WEBHOOK_HOOKSFILE}" "-hotreload" "-logfile" "${WEBHOOK_LOGFILE}" "-port" "${WEBHOOK_PORT}" "-setgid" "${WEBHOOK_GID}" "-setuid" "${WEBHOOK_UID}" "-x-request-id" &
 
 WEBHOOKCHILDPID=$!
 
