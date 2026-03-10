@@ -1,6 +1,6 @@
 FROM        golang:alpine AS build
 WORKDIR     /tmp/go/src/webhook
-ARG         WEBHOOK_VERSION=2026.03.09.0623
+ARG         WEBHOOK_VERSION=2026.03.10.0040
 ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
@@ -41,6 +41,11 @@ ENV         WEBHOOK_HOOKSFILE=${WEBHOOK_HOOKSFILE}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
 
+WORKDIR     ${WEBHOOK_ETC_VOLUME}
+COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
+COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
+COPY        scripts/entrypoint.sh /entrypoint.sh
+
 RUN         apk update \
          && apk upgrade \
          && apk add --no-cache --verbose --no-interactive --update -t \
@@ -70,10 +75,6 @@ RUN         addgroup -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose logs" >> "/etc/sudoers.d/webhook" \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose restart" >> "/etc/sudoers.d/webhook"
 
-COPY        --from=build ${WEBHOOK_BIN} ${WEBHOOK_BIN}
-COPY        config/hooks.yaml.tmpl ${WEBHOOK_HOOKSFILE}
-COPY        scripts/entrypoint.sh /entrypoint.sh
-WORKDIR     ${WEBHOOK_ETC_VOLUME}
 EXPOSE      ${WEBHOOK_PORT}/tcp
 
 ENTRYPOINT  ["/entrypoint.sh"]
