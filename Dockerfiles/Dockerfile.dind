@@ -1,6 +1,6 @@
 FROM        golang:alpine AS build
 WORKDIR     /tmp/go/src/webhook
-ARG         WEBHOOK_VERSION=2026.03.10.0412
+ARG         WEBHOOK_VERSION=2026.03.13.0003
 ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
@@ -70,6 +70,7 @@ RUN         addgroup -g ${WEBHOOK_GID} ${WEBHOOK_GROUP} \
      && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_ETC_VOLUME} \
      && chown ${WEBHOOK_UID}:${WEBHOOK_GID} -R ${WEBHOOK_LOG_VOLUME} \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose up" >> "/etc/sudoers.d/webhook" \
+     && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose up -d" >> "/etc/sudoers.d/webhook" \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose down" >> "/etc/sudoers.d/webhook" \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose ps" >> "/etc/sudoers.d/webhook" \
      && echo "%webhook ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/docker compose logs" >> "/etc/sudoers.d/webhook" \

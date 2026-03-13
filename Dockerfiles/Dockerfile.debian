@@ -1,6 +1,6 @@
 FROM        golang:alpine AS build
 WORKDIR     /tmp/go/src/webhook
-ARG         WEBHOOK_VERSION=2026.03.10.0412
+ARG         WEBHOOK_VERSION=2026.03.13.0003
 ENV         WEBHOOK_VERSION=${WEBHOOK_VERSION}
 ARG         WEBHOOK_BIN="/usr/bin/webhook"
 ENV         WEBHOOK_BIN=${WEBHOOK_BIN}
